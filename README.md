@@ -14,14 +14,38 @@ A modern, web-based utility designed to simplify OCI (Oracle Cloud Infrastructur
 
 ---
 
-## � Prerequisites
+## 📋 Prerequisites
 
-Before running the application, ensure you have the following installed:
+Before running the application, ensure you have the following requirements met:
 
-1.  **Node.js**: [Download and install Node.js](https://nodejs.org/) (v14.x or later).
-2.  **Terraform**: [Download and install Terraform](https://www.terraform.io/downloads). Ensure `terraform` is in your system PATH.
-3.  **OCI Account**: A valid OCI account with a configured user, region, and compartment.
-4.  **OCI API Key**: You will need your `user_ocid`, `tenancy_ocid`, `fingerprint`, and the path to your private API key (`.pem`).
+### 1. Software Requirements
+- **Node.js**: [Download and install Node.js](https://nodejs.org/) (v14.x or later).
+- **Terraform**: [Download and install Terraform](https://www.terraform.io/downloads). Ensure the `terraform` executable is in your system **PATH**.
+- **PowerShell** (Windows only): Used for the `manage.ps1` lifecycle script.
+
+### 2. OCI Configuration (API Keys)
+You need valid OCI API credentials. Ensure you have the following values ready:
+- `user_ocid`: Your OCI user OCID.
+- `tenancy_ocid`: Your OCI tenancy OCID.
+- `fingerprint`: Fingerprint for your API key.
+- `private_key_path`: Absolute path to your OCI API private key (`.pem`).
+
+### 3. Cloud Infrastructure & Service Limits
+The deployment uses specific OCI shapes. Ensure your tenancy has sufficient quota/service limits for:
+- **Compute (Bastion & OKE)**: 
+  - `VM.Standard.E4.Flex` (Example: 4 OCPUs, 16GB RAM for Bastion).
+  - `VM.Standard.E5.Flex` or preferred shape for OKE Node Pool.
+- **Database**: 
+  - `VM.Standard2.1` or similar for DB System nodes.
+- **Storage**: At least 256GB for Database and supplemental storage for File System (FSS).
+
+### 4. Application Assets
+- **Docker Registry**: Access credentials for the container registry hosting BRM images (Server, Username, Password/Auth Token).
+- **OCIR Path**: The base URL for your Oracle Cloud Infrastructure Registry.
+
+### 5. Local Setup
+- **Network**: Port `3000` must be available on your localhost.
+- **Internet Access**: Required for Terraform to download providers and for the utility to interact with OCI APIs.
 
 ---
 

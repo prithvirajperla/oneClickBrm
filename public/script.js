@@ -55,22 +55,38 @@ const updateProgress = (percent) => {
 };
 
 const checkLogsForProgress = (message) => {
-    if (message.includes("module.compute.oci_core_instance.bastion: Creation complete after")) {
-        updateProgress(20);
-        showPopup("Bastion VM Deployed", "The Bastion Host is now up and running.");
-    } else if (message.includes("module.compute.oci_containerengine_node_pool.node_pool: Creation complete after")) {
-        updateProgress(40);
-        showPopup("OKE Deployed", "The Oracle Kubernetes Engine node pool has been created.");
+    if (message.includes("module.compute.oci_core_instance.bastion: Creation complete")) {
+        updateProgress(15);
+        showPopup("Bastion Vm Deployed", "The Bastion Host is now up and running.");
+    } else if (message.includes("module.compute.oci_containerengine_node_pool.node_pool: Creation complete")) {
+        updateProgress(30);
+        showPopup("OKE Cluster deployed", "The Oracle Kubernetes Engine node pool has been created.");
     } else if (message.includes("module.db.oci_database_db_system.db_vm: Creation complete")) {
-        updateProgress(70);
-        showPopup("Database is Deployed", "Your OCI DB System is now active.");
-    } else if (message.includes("Terraform has been successfully initialized!")) {
         updateProgress(50);
-    } else if (message.includes("Apply complete!") || message.includes("Process finished with code 0")) {
+        showPopup("Database is deployed", "Your OCI DB System is now active.");
+    } else if (message.includes("module.compute.null_resource.init_db_config: Creation complete")) {
+        updateProgress(65);
+        showPopup("BRM Infra Deployed", "Your brm infra is deployed and helm configuration started.");
+    } else if (message.includes("module.compute.null_resource.install-welogic: Creation complete")) {
+        updateProgress(75);
+        showPopup("Init db configured", "Database initialization and WebLogic setup are complete.");
+    } else if (message.includes("module.compute.null_resource.op_job_congig: Creation complete")) {
+        updateProgress(80);
+        showPopup("OP-jobs", "Operational jobs configuration is complete.");
+    } else if (message.includes("module.compute.null_resource.oc-cn-helm-config: Creation complete")) {
+        updateProgress(90);
+        showPopup("PDC deployed", "Pricing Design Center has been deployed.");
+    } else if (message.includes("module.compute.null_resource.oc-cn-ece-config: Creation complete")) {
         updateProgress(100);
-        if (message.includes("Apply complete!")) {
-            showPopup("BRM Deployed", "Full deployment is finished successfully!");
-        }
+        showPopup("ECE deployed", "Brm application is deployed. Elastic Charging Engine is now active.");
+    } else if (message.includes("module.compute.oci_core_instance.bastion: Destruction complete")) {
+        updateProgress(25);
+    } else if (message.includes("module.compute.oci_containerengine_node_pool.node_pool: Destruction complete")) {
+        updateProgress(50);
+    } else if (message.includes("module.db.oci_database_db_system.db_vm: Destruction complete")) {
+        updateProgress(100);
+    } else if (message.includes("Process finished with code 0") || message.includes("Apply complete!")) {
+        updateProgress(100);
     }
 };
 
