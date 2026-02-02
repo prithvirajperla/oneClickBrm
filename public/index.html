@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One-Click BRM Deployment</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>One-Click BRM</h1>
+            <div class="quote" id="random-quote">"The best way to predict the future is to invent it."</div>
+        </div>
+    </nav>
+
+    <div id="popup-overlay" class="popup-overlay"></div>
+    <div id="popup-container" class="popup-container"></div>
+
+    <main class="container">
+        <section class="config-section">
+            <h2>Deployment Configuration</h2>
+            <form id="variable-form">
+
+                <!-- OS Selection Section -->
+                <div class="category-block">
+                    <h3>OS Selection</h3>
+                    <div class="os-selection-group">
+                        <label>Select Operating System:</label>
+                        <div class="radio-group">
+                            <label><input type="radio" name="os_type" value="windows" checked> Windows</label>
+                            <label><input type="radio" name="os_type" value="unix"> Mac / Linux</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Provider Section -->
+                <div class="category-block">
+                    <h3>Provider</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="user_ocid">User OCID</label>
+                            <input type="text" id="user_ocid" name="user_ocid" placeholder="ocid1.user.oc1...">
+                        </div>
+                        <div class="form-group">
+                            <label for="fingerprint">Fingerprint</label>
+                            <input type="text" id="fingerprint" name="fingerprint" placeholder="xx:xx:xx...">
+                        </div>
+                        <div class="form-group">
+                            <label for="api_key_path">API Key Path</label>
+                            <input type="text" id="api_key_path" name="api_key_path"
+                                placeholder="~/.oci/oci_api_key.pem">
+                        </div>
+                        <div class="form-group">
+                            <label for="region">Region</label>
+                            <input type="text" id="region" name="region" placeholder="eu-frankfurt-1">
+                        </div>
+                        <div class="form-group">
+                            <label for="tenancy_ocid">Tenancy OCID</label>
+                            <input type="text" id="tenancy_ocid" name="tenancy_ocid" placeholder="ocid1.tenancy.oc1...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compartment OCID Section -->
+                <div class="category-block">
+                    <h3>Compartment OCID</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="network_compartment_id">Network Compartment OCID</label>
+                            <input type="text" id="network_compartment_id" name="network_compartment_id"
+                                placeholder="ocid1.compartment.oc1...">
+                        </div>
+                        <div class="form-group">
+                            <label for="storage_compartment_ocid">Storage Compartment OCID</label>
+                            <input type="text" id="storage_compartment_ocid" name="storage_compartment_ocid"
+                                placeholder="ocid1.compartment.oc1...">
+                        </div>
+                        <div class="form-group">
+                            <label for="compute_compartment_id">Compute Compartment OCID</label>
+                            <input type="text" id="compute_compartment_id" name="compute_compartment_id"
+                                placeholder="ocid1.compartment.oc1...">
+                        </div>
+                        <div class="form-group">
+                            <label for="database_compartment_id">Database Compartment OCID</label>
+                            <input type="text" id="database_compartment_id" name="database_compartment_id"
+                                placeholder="ocid1.compartment.oc1...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Section -->
+                <div class="category-block">
+                    <h3>Network</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="display_name">VCN Name</label>
+                            <input type="text" id="display_name" name="display_name" placeholder="e.g. brm-vcn">
+                        </div>
+                        <div class="form-group">
+                            <label for="vcn_cidr">VCN CIDR</label>
+                            <div class="input-with-action">
+                                <input type="text" id="vcn_cidr" name="vcn_cidr" placeholder="10.0.0.0/16">
+                                <button type="button" id="preview-subnets-btn" class="btn btn-secondary btn-sm">Preview Subnets</button>
+                            </div>
+                            <div id="cidr-error" class="error-text"></div>
+                        </div>
+                    </div>
+                    <div id="subnet-details" class="subnet-details" style="display: none;">
+                        <div class="subnet-header">
+                            <h4>Subnet Calculation Results</h4>
+                            <button type="button" id="close-subnets-btn" class="close-btn">&times;</button>
+                        </div>
+                        <table class="subnet-table">
+                            <thead>
+                                <tr>
+                                    <th>Subnet Name</th>
+                                    <th>Calculated CIDR</th>
+                                    <th>Logic (newbits, netnum)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subnet-table-body">
+                                <!-- Results will be injected here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Database Section -->
+                <div class="category-block">
+                    <h3>Database</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="db_admin_password">DB Password</label>
+                            <input type="password" id="db_admin_password" name="db_admin_password"
+                                placeholder="Admin Password">
+                        </div>
+                        <div class="form-group">
+                            <label for="pinpass">Schema Pass</label>
+                            <input type="password" id="pinpass" name="pinpass" placeholder="Schema Password">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compute Section -->
+                <div class="category-block">
+                    <h3>Compute</h3>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="bastion_img_id">Bastion Image ID</label>
+                            <input type="text" id="bastion_img_id" name="bastion_img_id"
+                                placeholder="ocid1.image.oc1...">
+                        </div>
+                        <div class="form-group">
+                            <label for="custom_rsa_key">RSA Key</label>
+                            <input type="text" id="custom_rsa_key" name="custom_rsa_key" placeholder="ssh-rsa ...">
+                        </div>
+                        <div class="form-group">
+                            <label for="pub_rsa_key_path">RSA Key Path</label>
+                            <input type="text" id="pub_rsa_key_path" name="pub_rsa_key_path"
+                                placeholder="/path/to/key.pub">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button type="button" id="plan-btn" class="btn btn-primary">Save & Plan</button>
+                    <button type="button" id="deploy-btn" class="btn btn-success">Deploy</button>
+                    <button type="button" id="destroy-btn" class="btn btn-danger">Destroy Resources</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="logs-section">
+            <div class="logs-header">
+                <h2>Execution Logs</h2>
+                <div id="status-indicator" class="status-indicator"></div>
+            </div>
+            <div id="logs-container" class="logs-container">
+                <div class="log-entry">Waiting for action...</div>
+            </div>
+            <div id="progress-container" class="progress-container" style="display: none; margin-top: 20px;">
+                <div class="progress-bar-wrapper">
+                    <div id="progress-bar" class="progress-bar"></div>
+                    <span id="progress-text">0%</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>

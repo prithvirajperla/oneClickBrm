@@ -1,0 +1,11 @@
+variable "database_compartment_id" {}
+variable "db_admin_password" {}
+variable "db_subnet_id" {}
+variable "tenancy_ocid" {}
+variable "public_key_pem" {}
+variable "db_cidr" {}
+variable "db_vm_shape" {}
+variable "db_display_name" {}
+variable "pdb_name" {}
+variable "dbsubnetdomain" {}
+variable "availability_domain" {}

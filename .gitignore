@@ -1,0 +1,25 @@
+# Local .terraform directories
+**/.terraform/*
+
+# .tfstate files
+*.tfstate
+*.tfstate.*
+
+# Sensitive variables
+*.tfvars
+*.tfvars.json
+
+# Crash logs and overrides
+crash.log
+*.override.tf
+
+#account
+account.tf
+
+#private key
+bastion_private_key.pem
+
+#ociconfig
+oci_config
+
+*.dot
