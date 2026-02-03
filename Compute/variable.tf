@@ -12,7 +12,7 @@ variable "db_private_ip" {}
 variable "db_admin_password" {}
 variable "bastion_shape" {}
 variable "bastion_display_name" {}
-variable "api_key_path" {}
+variable "private_key_path" {}
 variable "nsg_app" {}
 variable "nsg_oke" {}
 variable "dockerServer" {}

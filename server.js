@@ -17,12 +17,36 @@ app.use(express.static('public'));
 // Helper to update .tfvars file
 const updateTfVars = (vars) => {
     let content = '';
+    const ignoreKeys = vars.useOciCli ? ['user_ocid', 'tenancy_ocid', 'fingerprint', 'private_key_path', 'region'] : [];
+
     for (const [key, value] of Object.entries(vars)) {
+        if (key === 'useOciCli') continue;
+        if (ignoreKeys.includes(key)) continue;
+
         if (value !== undefined && value !== null && value !== '') {
             content += `${key} = "${value}"\n`;
         }
     }
     fs.writeFileSync(path.join(__dirname, 'terraform.tfvars'), content);
+};
+
+// Helper to parse OCI config
+const getOciCliConfig = () => {
+    const configPath = path.join(process.env.HOME || process.env.USERPROFILE, '.oci', 'config');
+    if (!fs.existsSync(configPath)) return null;
+    const content = fs.readFileSync(configPath, 'utf-8');
+    const vars = {};
+    let inDefault = false;
+    content.split('\n').forEach(line => {
+        line = line.trim();
+        if (line === '[DEFAULT]') inDefault = true;
+        else if (line.startsWith('[') && line.endsWith(']')) inDefault = false;
+        else if (inDefault && line.includes('=')) {
+            const [key, ...rest] = line.split('=');
+            vars[key.trim()] = rest.join('=').trim();
+        }
+    });
+    return vars;
 };
 
 // Terraform command execution with real-time streaming
@@ -72,6 +96,20 @@ io.on('connection', (socket) => {
             socket.emit('log', 'terraform.tfvars updated.');
 
             const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
+            if (vars.useOciCli) {
+                const ociConfig = getOciCliConfig();
+                if (ociConfig) {
+                    timeoutEnv.TF_VAR_user_ocid = ociConfig.user;
+                    timeoutEnv.TF_VAR_tenancy_ocid = ociConfig.tenancy;
+                    timeoutEnv.TF_VAR_fingerprint = ociConfig.fingerprint;
+                    timeoutEnv.TF_VAR_private_key_path = ociConfig.key_file.replace('~', process.env.HOME || process.env.USERPROFILE);
+                    timeoutEnv.TF_VAR_region = ociConfig.region;
+                    socket.emit('log', 'Using OCI CLI default config via environment variables.');
+                } else {
+                    socket.emit('log', 'ERROR: OCI config file not found. Falling back to defaults.');
+                }
+            }
+
             const timeoutLog = vars.os_type === 'windows' ? 'set TF_HTTP_TIMEOUT=900' : 'export TF_HTTP_TIMEOUT=900';
             socket.emit('log', `Running: ${timeoutLog}`);
 
@@ -100,6 +138,20 @@ io.on('connection', (socket) => {
             socket.emit('log', 'terraform.tfvars updated.');
 
             const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
+            if (vars.useOciCli) {
+                const ociConfig = getOciCliConfig();
+                if (ociConfig) {
+                    timeoutEnv.TF_VAR_user_ocid = ociConfig.user;
+                    timeoutEnv.TF_VAR_tenancy_ocid = ociConfig.tenancy;
+                    timeoutEnv.TF_VAR_fingerprint = ociConfig.fingerprint;
+                    timeoutEnv.TF_VAR_private_key_path = ociConfig.key_file.replace('~', process.env.HOME || process.env.USERPROFILE);
+                    timeoutEnv.TF_VAR_region = ociConfig.region;
+                    socket.emit('log', 'Using OCI CLI default config via environment variables.');
+                } else {
+                    socket.emit('log', 'ERROR: OCI config file not found. Falling back to defaults.');
+                }
+            }
+
             const timeoutLog = vars.os_type === 'windows' ? 'set TF_HTTP_TIMEOUT=900' : 'export TF_HTTP_TIMEOUT=900';
             socket.emit('log', `Running: ${timeoutLog}`);
 

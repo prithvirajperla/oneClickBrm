@@ -2,17 +2,17 @@ provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
   fingerprint      = var.fingerprint
-  private_key_path = var.api_key_path
+  private_key_path = var.private_key_path
   region           = var.region
 
 }
 
 module "vcn" {
 
-  source                   = "./Network"
-  network_compartment_id   = var.network_compartment_id
-  vcn_cidr                 = var.vcn_cidr
-  display_name             = var.display_name
+  source                 = "./Network"
+  network_compartment_id = var.network_compartment_id
+  vcn_cidr               = var.vcn_cidr
+  display_name           = var.display_name
   #compartment_ocid         = var.compartment_ocid
   storage_compartment_ocid = var.storage_compartment_ocid
   compute_compartment      = var.compute_compartment_id
@@ -47,10 +47,10 @@ module "compute" {
 
 
   #-ociConfig
-  api_key_path = var.api_key_path
-  user_ocid    = var.user_ocid
-  fingerprint  = var.fingerprint
-  region       = var.region
+  private_key_path = var.private_key_path
+  user_ocid        = var.user_ocid
+  fingerprint      = var.fingerprint
+  region           = var.region
 
   #-OKEconfig
   app_cidr               = module.vcn.app_cidr

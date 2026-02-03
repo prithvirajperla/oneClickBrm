@@ -38,9 +38,54 @@
                 </div>
 
                 <!-- Provider Section -->
+                <style>
+                    .card-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 20px;
+                    }
+
+                    .toggle-group {
+                        display: flex;
+                        background: #f0f0f0;
+                        border-radius: 8px;
+                        padding: 4px;
+                        border: 1px solid #ddd;
+                    }
+
+                    .toggle-btn {
+                        border: none;
+                        background: none;
+                        padding: 6px 12px;
+                        cursor: pointer;
+                        border-radius: 6px;
+                        font-size: 0.85rem;
+                        font-weight: 500;
+                        color: #666;
+                        transition: all 0.3s ease;
+                    }
+
+                    .toggle-btn.active {
+                        background: #28a745;
+                        color: white;
+                        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                    }
+
+                    .form-group.disabled {
+                        opacity: 0.6;
+                        pointer-events: none;
+                    }
+                </style>
                 <div class="category-block">
-                    <h3>Provider</h3>
-                    <div class="form-grid">
+                    <div class="card-header">
+                        <h3><i class="fas fa-cloud"></i> Provider Information</h3>
+                        <div class="toggle-group" id="oci-source-toggle">
+                            <button type="button" class="toggle-btn active" data-source="custom">Custom</button>
+                            <button type="button" class="toggle-btn" data-source="oci">OCI CLI Default</button>
+                        </div>
+                    </div>
+                    <div class="form-grid" id="provider-section">
                         <div class="form-group">
                             <label for="user_ocid">User OCID</label>
                             <input type="text" id="user_ocid" name="user_ocid" placeholder="ocid1.user.oc1...">
@@ -50,8 +95,8 @@
                             <input type="text" id="fingerprint" name="fingerprint" placeholder="xx:xx:xx...">
                         </div>
                         <div class="form-group">
-                            <label for="api_key_path">API Key Path</label>
-                            <input type="text" id="api_key_path" name="api_key_path"
+                            <label for="private_key_path">Private Key Path</label>
+                            <input type="text" id="private_key_path" name="private_key_path"
                                 placeholder="~/.oci/oci_api_key.pem">
                         </div>
                         <div class="form-group">
@@ -104,7 +149,8 @@
                             <label for="vcn_cidr">VCN CIDR</label>
                             <div class="input-with-action">
                                 <input type="text" id="vcn_cidr" name="vcn_cidr" placeholder="10.0.0.0/16">
-                                <button type="button" id="preview-subnets-btn" class="btn btn-secondary btn-sm">Preview Subnets</button>
+                                <button type="button" id="preview-subnets-btn" class="btn btn-secondary btn-sm">Preview
+                                    Subnets</button>
                             </div>
                             <div id="cidr-error" class="error-text"></div>
                         </div>

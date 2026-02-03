@@ -17,7 +17,7 @@ resource "null_resource" "copy_oci_config" {
 
   #This provisioner copies the OCI tenancy API key to the bastion host.
   provisioner "file" {
-    source      = var.api_key_path
+    source      = var.private_key_path
     destination = "/home/opc/.oci/key.pem"
 
 

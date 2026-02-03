@@ -108,10 +108,30 @@ socket.on('status', (status) => {
     statusIndicator.className = `status-indicator ${status}`;
 });
 
+// OCI Source Toggle logic
+const ociSourceToggle = document.getElementById('oci-source-toggle');
+const providerSection = document.getElementById('provider-section');
+const providerInputs = providerSection.querySelectorAll('input');
+let useOciCli = false;
+
+ociSourceToggle.addEventListener('click', (e) => {
+    if (e.target.classList.contains('toggle-btn')) {
+        ociSourceToggle.querySelectorAll('.toggle-btn').forEach(btn => btn.classList.remove('active'));
+        e.target.classList.add('active');
+
+        useOciCli = e.target.dataset.source === 'oci';
+        if (useOciCli) {
+            providerSection.style.display = 'none';
+        } else {
+            providerSection.style.display = 'grid';
+        }
+    }
+});
+
 // Action Handlers
 document.getElementById('plan-btn').addEventListener('click', () => {
     const formData = new FormData(document.getElementById('variable-form'));
-    const vars = {};
+    const vars = { useOciCli };
     formData.forEach((value, key) => {
         vars[key] = value;
     });
@@ -125,7 +145,7 @@ document.getElementById('plan-btn').addEventListener('click', () => {
 
 document.getElementById('deploy-btn').addEventListener('click', () => {
     const formData = new FormData(document.getElementById('variable-form'));
-    const vars = {};
+    const vars = { useOciCli };
     formData.forEach((value, key) => {
         vars[key] = value;
     });

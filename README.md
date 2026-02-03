@@ -49,7 +49,31 @@ The deployment uses specific OCI shapes. Ensure your tenancy has sufficient quot
 
 ---
 
-## 🛠️ Setup & Usage
+## ⚡ Quick Setup (Windows)
+
+For a fast installation of all prerequisites on Windows, open **PowerShell** as Administrator and run the following commands:
+
+### 1. Install System Tools (via Winget)
+```powershell
+# Install Node.js
+winget install OpenJS.NodeJS.LTS
+
+# Install Terraform
+winget install Hashicorp.Terraform
+
+# Install OCI CLI (Optional but recommended)
+winget install Oracle.OCI.CLI
+```
+
+### 2. Verify Installation
+Restart your terminal and run:
+```powershell
+node -v
+terraform -v
+oci --version
+```
+
+---
 
 ### 1. Install Dependencies
 Open your terminal in the project directory and run:

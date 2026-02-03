@@ -1,7 +1,7 @@
 #Provider
 variable "user_ocid" {}
 variable "fingerprint" {}
-variable "api_key_path" {}
+variable "private_key_path" {}
 variable "region" {}
 
 
