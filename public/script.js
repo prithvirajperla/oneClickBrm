@@ -104,8 +104,21 @@ socket.on('log', (message) => {
     appendLog(message);
 });
 
+socket.on('log-history', (history) => {
+    logsContainer.innerHTML = '';
+    history.forEach(message => appendLog(message));
+});
+
+socket.on('clear-logs', () => {
+    logsContainer.innerHTML = '';
+});
+
 socket.on('status', (status) => {
     statusIndicator.className = `status-indicator ${status}`;
+});
+
+socket.on('progress-visibility', (visible) => {
+    progressContainer.style.display = visible ? 'block' : 'none';
 });
 
 // OCI Source Toggle logic
@@ -229,11 +242,17 @@ document.getElementById('close-subnets-btn').addEventListener('click', () => {
 
 document.getElementById('destroy-btn').addEventListener('click', () => {
     if (confirm('Are you sure you want to destroy all resources?')) {
+        const formData = new FormData(document.getElementById('variable-form'));
+        const vars = { useOciCli };
+        formData.forEach((value, key) => {
+            vars[key] = value;
+        });
+
         logsContainer.innerHTML = '';
         statusIndicator.className = 'status-indicator running';
         progressContainer.style.display = 'block';
         updateProgress(0);
-        socket.emit('destroy');
+        socket.emit('destroy', vars);
     }
 });
 

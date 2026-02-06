@@ -12,6 +12,29 @@ const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
 let currentProcess = null;
+let logHistory = [];
+let currentStatus = 'idle';
+let isProgressVisible = false;
+
+const emitLog = (message) => {
+    logHistory.push(message);
+    io.emit('log', message);
+};
+
+const setStatus = (status) => {
+    currentStatus = status;
+    io.emit('status', status);
+};
+
+const setProgressVisibility = (visible) => {
+    isProgressVisible = visible;
+    io.emit('progress-visibility', visible);
+};
+
+const clearLogs = () => {
+    logHistory = [];
+    io.emit('clear-logs');
+};
 
 app.use(bodyParser.json());
 app.use(express.static('public'));
@@ -57,16 +80,16 @@ const runTerraform = (socket, args, env = process.env) => {
     currentProcess = tf;
 
     tf.stdout.on('data', (data) => {
-        socket.emit('log', data.toString());
+        emitLog(data.toString());
     });
 
     tf.stderr.on('data', (data) => {
-        socket.emit('log', `ERROR: ${data.toString()}`);
+        emitLog(`ERROR: ${data.toString()}`);
     });
 
     tf.on('close', (code) => {
-        socket.emit('log', `Process finished with code ${code}`);
-        socket.emit('status', code === 0 ? 'success' : 'failure');
+        emitLog(`Process finished with code ${code}`);
+        setStatus(code === 0 ? 'success' : 'failure');
         currentProcess = null;
     });
 };
@@ -90,16 +113,22 @@ const parseTfVars = () => {
 io.on('connection', (socket) => {
     console.log('Client connected');
 
-    // Send existing tfvars to client on connection
+    // Send existing state to client on connection
     socket.emit('tfvars', parseTfVars());
+    socket.emit('log-history', logHistory);
+    socket.emit('status', currentStatus);
+    socket.emit('progress-visibility', isProgressVisible);
 
     socket.on('plan', (vars) => {
-        socket.emit('log', '--- Starting Plan ---');
+        clearLogs();
+        emitLog('--- Starting Plan ---');
         try {
             updateTfVars(vars);
-            socket.emit('log', 'terraform.tfvars updated.');
+            emitLog('terraform.tfvars updated.');
 
             const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
+            setStatus('running');
+            setProgressVisibility(false);
             if (vars.useOciCli) {
                 const ociConfig = getOciCliConfig();
                 if (ociConfig) {
@@ -120,15 +149,15 @@ io.on('connection', (socket) => {
             socket.emit('log', 'Running: terraform init');
             const init = spawn('terraform', ['init', '-no-color'], { env: timeoutEnv });
             currentProcess = init;
-            init.stdout.on('data', (data) => socket.emit('log', data.toString()));
-            init.stderr.on('data', (data) => socket.emit('log', `ERROR: ${data.toString()}`));
+            init.stdout.on('data', (data) => emitLog(data.toString()));
+            init.stderr.on('data', (data) => emitLog(`ERROR: ${data.toString()}`));
             init.on('close', (code) => {
                 currentProcess = null;
                 if (code === 0) {
-                    runTerraform(socket, ['plan', '-no-color'], timeoutEnv);
+                    runTerraform(io, ['plan', '-no-color'], timeoutEnv);
                 } else {
-                    socket.emit('log', 'terraform init failed.');
-                    socket.emit('status', 'failure');
+                    emitLog('terraform init failed.');
+                    setStatus('failure');
                 }
             });
         } catch (err) {
@@ -138,12 +167,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('deploy', (vars) => {
-        socket.emit('log', '--- Starting Deployment (Apply) ---');
+        clearLogs();
+        emitLog('--- Starting Deployment (Apply) ---');
         try {
             updateTfVars(vars);
-            socket.emit('log', 'terraform.tfvars updated.');
+            emitLog('terraform.tfvars updated.');
 
             const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
+            setStatus('running');
+            setProgressVisibility(true);
+
             if (vars.useOciCli) {
                 const ociConfig = getOciCliConfig();
                 if (ociConfig) {
@@ -152,27 +185,27 @@ io.on('connection', (socket) => {
                     timeoutEnv.TF_VAR_fingerprint = ociConfig.fingerprint;
                     timeoutEnv.TF_VAR_private_key_path = ociConfig.key_file.replace('~', process.env.HOME || process.env.USERPROFILE);
                     timeoutEnv.TF_VAR_region = ociConfig.region;
-                    socket.emit('log', 'Using OCI CLI default config via environment variables.');
+                    emitLog('Using OCI CLI default config via environment variables.');
                 } else {
-                    socket.emit('log', 'ERROR: OCI config file not found. Falling back to defaults.');
+                    emitLog('ERROR: OCI config file not found. Falling back to defaults.');
                 }
             }
 
             const timeoutLog = vars.os_type === 'windows' ? 'set TF_HTTP_TIMEOUT=900' : 'export TF_HTTP_TIMEOUT=900';
-            socket.emit('log', `Running: ${timeoutLog}`);
+            emitLog(`Running: ${timeoutLog}`);
 
-            socket.emit('log', 'Running: terraform init');
+            emitLog('Running: terraform init');
             const init = spawn('terraform', ['init', '-no-color'], { env: timeoutEnv });
             currentProcess = init;
-            init.stdout.on('data', (data) => socket.emit('log', data.toString()));
-            init.stderr.on('data', (data) => socket.emit('log', `ERROR: ${data.toString()}`));
+            init.stdout.on('data', (data) => emitLog(data.toString()));
+            init.stderr.on('data', (data) => emitLog(`ERROR: ${data.toString()}`));
             init.on('close', (code) => {
                 currentProcess = null;
                 if (code === 0) {
-                    runTerraform(socket, ['apply', '-auto-approve', '-no-color'], timeoutEnv);
+                    runTerraform(io, ['apply', '-auto-approve', '-no-color'], timeoutEnv);
                 } else {
-                    socket.emit('log', 'terraform init failed.');
-                    socket.emit('status', 'failure');
+                    emitLog('terraform init failed.');
+                    setStatus('failure');
                 }
             });
         } catch (err) {
@@ -181,10 +214,52 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('destroy', () => {
-        socket.emit('log', '--- Starting Destruction ---');
-        const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
-        runTerraform(socket, ['destroy', '-auto-approve', '-no-color'], timeoutEnv);
+    socket.on('destroy', (vars) => {
+        clearLogs();
+        emitLog('--- Starting Destruction ---');
+        try {
+            updateTfVars(vars);
+            emitLog('terraform.tfvars updated.');
+
+            const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
+            setStatus('running');
+            setProgressVisibility(true);
+
+            if (vars.useOciCli) {
+                const ociConfig = getOciCliConfig();
+                if (ociConfig) {
+                    timeoutEnv.TF_VAR_user_ocid = ociConfig.user;
+                    timeoutEnv.TF_VAR_tenancy_ocid = ociConfig.tenancy;
+                    timeoutEnv.TF_VAR_fingerprint = ociConfig.fingerprint;
+                    timeoutEnv.TF_VAR_private_key_path = ociConfig.key_file.replace('~', process.env.HOME || process.env.USERPROFILE);
+                    timeoutEnv.TF_VAR_region = ociConfig.region;
+                    emitLog('Using OCI CLI default config via environment variables.');
+                } else {
+                    emitLog('ERROR: OCI config file not found. Falling back to defaults.');
+                }
+            }
+
+            const timeoutLog = vars.os_type === 'windows' ? 'set TF_HTTP_TIMEOUT=900' : 'export TF_HTTP_TIMEOUT=900';
+            emitLog(`Running: ${timeoutLog}`);
+
+            emitLog('Running: terraform init');
+            const init = spawn('terraform', ['init', '-no-color'], { env: timeoutEnv });
+            currentProcess = init;
+            init.stdout.on('data', (data) => emitLog(data.toString()));
+            init.stderr.on('data', (data) => emitLog(`ERROR: ${data.toString()}`));
+            init.on('close', (code) => {
+                currentProcess = null;
+                if (code === 0) {
+                    runTerraform(io, ['destroy', '-auto-approve', '-no-color'], timeoutEnv);
+                } else {
+                    emitLog('terraform init failed.');
+                    setStatus('failure');
+                }
+            });
+        } catch (err) {
+            emitLog(`Error: ${err.message}`);
+            setStatus('failure');
+        }
     });
 
     socket.on('kill', () => {
@@ -194,15 +269,16 @@ io.on('connection', (socket) => {
                 ? `taskkill /F /T /PID ${pid}`
                 : `kill -9 ${pid}`;
 
-            socket.emit('log', `Force Killing process...`);
-            socket.emit('log', `Running command: ${command}`);
+            emitLog(`Force Killing process...`);
+            emitLog(`Running command: ${command}`);
 
             const killExec = spawn(process.platform === 'win32' ? 'taskkill' : 'kill',
                 process.platform === 'win32' ? ['/F', '/T', '/PID', pid] : ['-9', pid]);
 
             killExec.on('close', (code) => {
-                socket.emit('log', `Kill command finished with code ${code}`);
+                emitLog(`Kill command finished with code ${code}`);
                 currentProcess = null;
+                setStatus('failure');
             });
         } else {
             socket.emit('log', 'No active Terraform process to kill.');
@@ -211,15 +287,15 @@ io.on('connection', (socket) => {
 
     socket.on('stop', () => {
         if (currentProcess) {
-            socket.emit('log', 'Attempting to stop Terraform gracefully (SIGINT)...');
+            emitLog('Attempting to stop Terraform gracefully (SIGINT)...');
             // Sending SIGINT is the same as Ctrl+C
             currentProcess.kill('SIGINT');
 
             // On Windows, child_process.kill('SIGINT') might just terminate.
             // But Terraform handles the interrupt specifically to clean up.
-            socket.emit('log', 'Signal SIGINT sent. Waiting for Terraform to clean up state...');
+            emitLog('Signal SIGINT sent. Waiting for Terraform to clean up state...');
         } else {
-            socket.emit('log', 'No active Terraform process to stop.');
+            emitLog('No active Terraform process to stop.');
         }
     });
 });
