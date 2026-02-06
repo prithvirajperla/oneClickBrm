@@ -236,3 +236,15 @@ document.getElementById('destroy-btn').addEventListener('click', () => {
         socket.emit('destroy');
     }
 });
+
+document.getElementById('kill-btn').addEventListener('click', () => {
+    if (confirm('Are you sure you want to FORCE KILL the running Terraform process? This may leave your cloud resources in an uncertain state.')) {
+        socket.emit('kill');
+    }
+});
+
+document.getElementById('stop-btn').addEventListener('click', () => {
+    if (confirm('Attempt to gracefully stop Terraform? This allows Terraform to finish current resource operations and release the state lock.')) {
+        socket.emit('stop');
+    }
+});

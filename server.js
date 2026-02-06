@@ -11,6 +11,8 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
+let currentProcess = null;
+
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
@@ -52,6 +54,7 @@ const getOciCliConfig = () => {
 // Terraform command execution with real-time streaming
 const runTerraform = (socket, args, env = process.env) => {
     const tf = spawn('terraform', args, { env });
+    currentProcess = tf;
 
     tf.stdout.on('data', (data) => {
         socket.emit('log', data.toString());
@@ -64,6 +67,7 @@ const runTerraform = (socket, args, env = process.env) => {
     tf.on('close', (code) => {
         socket.emit('log', `Process finished with code ${code}`);
         socket.emit('status', code === 0 ? 'success' : 'failure');
+        currentProcess = null;
     });
 };
 
@@ -115,9 +119,11 @@ io.on('connection', (socket) => {
 
             socket.emit('log', 'Running: terraform init');
             const init = spawn('terraform', ['init', '-no-color'], { env: timeoutEnv });
+            currentProcess = init;
             init.stdout.on('data', (data) => socket.emit('log', data.toString()));
             init.stderr.on('data', (data) => socket.emit('log', `ERROR: ${data.toString()}`));
             init.on('close', (code) => {
+                currentProcess = null;
                 if (code === 0) {
                     runTerraform(socket, ['plan', '-no-color'], timeoutEnv);
                 } else {
@@ -157,9 +163,11 @@ io.on('connection', (socket) => {
 
             socket.emit('log', 'Running: terraform init');
             const init = spawn('terraform', ['init', '-no-color'], { env: timeoutEnv });
+            currentProcess = init;
             init.stdout.on('data', (data) => socket.emit('log', data.toString()));
             init.stderr.on('data', (data) => socket.emit('log', `ERROR: ${data.toString()}`));
             init.on('close', (code) => {
+                currentProcess = null;
                 if (code === 0) {
                     runTerraform(socket, ['apply', '-auto-approve', '-no-color'], timeoutEnv);
                 } else {
@@ -177,6 +185,42 @@ io.on('connection', (socket) => {
         socket.emit('log', '--- Starting Destruction ---');
         const timeoutEnv = { ...process.env, TF_HTTP_TIMEOUT: '900' };
         runTerraform(socket, ['destroy', '-auto-approve', '-no-color'], timeoutEnv);
+    });
+
+    socket.on('kill', () => {
+        if (currentProcess) {
+            const pid = currentProcess.pid;
+            const command = process.platform === 'win32'
+                ? `taskkill /F /T /PID ${pid}`
+                : `kill -9 ${pid}`;
+
+            socket.emit('log', `Force Killing process...`);
+            socket.emit('log', `Running command: ${command}`);
+
+            const killExec = spawn(process.platform === 'win32' ? 'taskkill' : 'kill',
+                process.platform === 'win32' ? ['/F', '/T', '/PID', pid] : ['-9', pid]);
+
+            killExec.on('close', (code) => {
+                socket.emit('log', `Kill command finished with code ${code}`);
+                currentProcess = null;
+            });
+        } else {
+            socket.emit('log', 'No active Terraform process to kill.');
+        }
+    });
+
+    socket.on('stop', () => {
+        if (currentProcess) {
+            socket.emit('log', 'Attempting to stop Terraform gracefully (SIGINT)...');
+            // Sending SIGINT is the same as Ctrl+C
+            currentProcess.kill('SIGINT');
+
+            // On Windows, child_process.kill('SIGINT') might just terminate.
+            // But Terraform handles the interrupt specifically to clean up.
+            socket.emit('log', 'Signal SIGINT sent. Waiting for Terraform to clean up state...');
+        } else {
+            socket.emit('log', 'No active Terraform process to stop.');
+        }
     });
 });
 
