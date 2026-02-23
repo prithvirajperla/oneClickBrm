@@ -17,6 +17,7 @@ module "vcn" {
   storage_compartment_ocid = var.storage_compartment_ocid
   compute_compartment      = var.compute_compartment_id
   #tenancy_ocid             = var.tenancy_ocid
+  dns_label = local.normalized
 
 }
 

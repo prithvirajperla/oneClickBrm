@@ -78,7 +78,7 @@ resource "null_resource" "copy_kubeconfig" {
 
 #-DATABASE-KEY-UPLOAD-TO-BASTION(db_key)
 resource "null_resource" "copy_db_key_config" {
-  depends_on = [oci_core_instance.bastion, tls_private_key.bastion_key]
+  depends_on = [oci_core_instance.bastion]
   lifecycle {
     replace_triggered_by = [oci_core_instance.bastion, tls_private_key.bastion_key]
   }

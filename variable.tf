@@ -16,6 +16,14 @@ variable "compute_compartment_id" {}
 variable "database_compartment_id" {}
 
 
+locals {
+  # remove any character that's NOT A–Z, a–z, or 0–9, then lowercase
+  normalized = lower(replace(var.display_name, "/[^a-zA-Z0-9]/", ""))
+}
+
+
+
+
 #Compute
 #bastion
 variable "tenancy_ocid" {}

@@ -5,3 +5,6 @@ variable "display_name" {}
 variable "storage_compartment_ocid" {}
 variable "compute_compartment" {}
 #variable "tenancy_ocid" {}
+variable "dns_label" {
+  
+}
