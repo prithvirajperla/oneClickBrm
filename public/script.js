@@ -21,6 +21,8 @@ const progressText = document.getElementById('progress-text');
 const progressContainer = document.getElementById('progress-container');
 const popupOverlay = document.getElementById('popup-overlay');
 const popupContainer = document.getElementById('popup-container');
+const podSummaryContainer = document.getElementById('pod-summary-container');
+const podSummaryContent = document.getElementById('pod-summary-content');
 
 // Auto-fill logic
 socket.on('tfvars', (vars) => {
@@ -111,6 +113,87 @@ socket.on('log-history', (history) => {
 
 socket.on('clear-logs', () => {
     logsContainer.innerHTML = '';
+    podSummaryContainer.style.display = 'none';
+    podSummaryContent.innerHTML = '';
+});
+
+socket.on('pod-summary', (summary) => {
+    podSummaryContainer.style.display = 'block';
+
+    // Split the summary lines
+    const lines = summary.trim().split('\n');
+    let isTable = false;
+
+    // Check if the first line looks like pod headers
+    if (lines.length > 0 && lines[0].includes('NAME') && lines[0].includes('STATUS')) {
+        isTable = true;
+    }
+
+    if (isTable) {
+        let tableHTML = `<table class="subnet-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>NAME</th>
+                    <th>READY</th>
+                    <th>STATUS</th>
+                    <th>RESTARTS</th>
+                    <th>AGE</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            // Regex to parse columns. RESTARTS might have spaces e.g. "3 (4h ago)"
+            // Columns: NAME (1), READY (2), STATUS (3), RESTARTS (4), AGE (5)
+            const match = line.match(/^(\S+)\s+(\S+)\s+(\S+)\s+(.+?)\s+(\S+)$/);
+
+            if (match) {
+                const name = match[1];
+                const ready = match[2];
+                const status = match[3];
+                const restarts = match[4];
+                const age = match[5];
+
+                let statusColor = 'var(--text-dark)';
+                if (status === 'Running' || status === 'Completed') {
+                    statusColor = 'var(--dark-green)';
+                } else if (status.startsWith('Init')) {
+                    statusColor = '#f39c12'; // Orange/Yellow
+                } else if (status === 'Error' || status === 'CrashLoopBackOff') {
+                    statusColor = 'var(--danger-red)';
+                }
+
+                tableHTML += `
+                <tr>
+                    <td><strong>${name}</strong></td>
+                    <td>${ready}</td>
+                    <td style="color: ${statusColor}; font-weight: 600;">${status}</td>
+                    <td>${restarts}</td>
+                    <td>${age}</td>
+                </tr>`;
+            } else {
+                // Fallback for lines that don't match the regex perfectly
+                tableHTML += `<tr><td colspan="5" style="font-family: monospace;">${line}</td></tr>`;
+            }
+        }
+
+        tableHTML += `</tbody></table>`;
+        podSummaryContent.innerHTML = tableHTML;
+    } else {
+        // Fallback to pre-wrap if it doesn't look like a table
+        const pre = document.createElement('pre');
+        pre.style.margin = '0';
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.fontFamily = "'Courier New', Courier, monospace";
+        pre.style.fontSize = "0.9rem";
+        pre.textContent = summary;
+
+        podSummaryContent.innerHTML = '';
+        podSummaryContent.appendChild(pre);
+    }
 });
 
 socket.on('status', (status) => {

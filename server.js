@@ -16,9 +16,34 @@ let logHistory = [];
 let currentStatus = 'idle';
 let isProgressVisible = false;
 
+let isCollectingPods = false;
+let podSummaryBuffer = [];
+
 const emitLog = (message) => {
     logHistory.push(message);
     io.emit('log', message);
+
+    // Check if we are starting to receive pod info
+    if (message.includes('module.compute.null_resource.display_pods (remote-exec): NAME')) {
+        isCollectingPods = true;
+        podSummaryBuffer = [];
+    }
+
+    // Collect pod info
+    if (isCollectingPods) {
+        // Stop collecting when the resource creation completes
+        if (message.includes('module.compute.null_resource.display_pods: Creation complete')) {
+            isCollectingPods = false;
+            // Emit the collected pod summary back to the frontend
+            io.emit('pod-summary', podSummaryBuffer.join('\n'));
+        } else {
+            // Add lines that belong to the remote-exec output
+            const match = message.match(/module\.compute\.null_resource\.display_pods \(remote-exec\):\s*(.*)/);
+            if (match && match[1]) {
+                podSummaryBuffer.push(match[1]);
+            }
+        }
+    }
 };
 
 const setStatus = (status) => {
@@ -33,6 +58,8 @@ const setProgressVisibility = (visible) => {
 
 const clearLogs = () => {
     logHistory = [];
+    isCollectingPods = false;
+    podSummaryBuffer = [];
     io.emit('clear-logs');
 };
 

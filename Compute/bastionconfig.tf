@@ -514,3 +514,18 @@ resource "null_resource" "oc-cn-ece-config" {
     ]
   }
 }
+
+resource "null_resource" "display_pods" {
+  depends_on = [null_resource.oc-cn-ece-config]
+
+  connection {
+    type        = "ssh"
+    host        = oci_core_instance.bastion.public_ip
+    user        = "opc"
+    private_key = tls_private_key.bastion_key.private_key_pem
+  }
+  provisioner "remote-exec" {
+    inline = ["k get po -n pindb"]
+  }
+
+}
