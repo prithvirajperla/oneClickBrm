@@ -23,24 +23,35 @@ const emitLog = (message) => {
     logHistory.push(message);
     io.emit('log', message);
 
-    // Check if we are starting to receive pod info
-    if (message.includes('module.compute.null_resource.display_pods (remote-exec): NAME')) {
-        isCollectingPods = true;
-        podSummaryBuffer = [];
-    }
+    // We must process line by line, because message could be a chunk w/ multiple lines
+    const messageLines = message.split('\n');
+    for (const msg of messageLines) {
+        if (!msg.trim()) continue;
 
-    // Collect pod info
-    if (isCollectingPods) {
-        // Stop collecting when the resource creation completes
-        if (message.includes('module.compute.null_resource.display_pods: Creation complete')) {
-            isCollectingPods = false;
-            // Emit the collected pod summary back to the frontend
-            io.emit('pod-summary', podSummaryBuffer.join('\n'));
-        } else {
-            // Add lines that belong to the remote-exec output
-            const match = message.match(/module\.compute\.null_resource\.display_pods \(remote-exec\):\s*(.*)/);
-            if (match && match[1]) {
-                podSummaryBuffer.push(match[1]);
+        // Check if we are starting to receive pod info
+        if (msg.includes('module.compute.null_resource.display_pods (remote-exec): NAME')) {
+            isCollectingPods = true;
+            podSummaryBuffer = [];
+        }
+
+        // Collect pod info
+        if (isCollectingPods) {
+            // Stop collecting when the resource creation completes
+            if (msg.includes('module.compute.null_resource.display_pods: Creation complete')) {
+                isCollectingPods = false;
+                // Emit the collected pod summary back to the frontend
+                io.emit('pod-summary', podSummaryBuffer.join('\n'));
+            } else {
+                // Add lines that belong to the remote-exec output
+                const match = msg.match(/module\.compute\.null_resource\.display_pods \(remote-exec\):\s*(.*)/);
+                if (match && match[1]) {
+                    const part = match[1].trim();
+                    if (podSummaryBuffer.length > 0 && !part.match(/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/i) && !part.includes('NAME') && (part.match(/^[0-9]/) || part.match(/^Init:/) || part.match(/^[A-Z][a-z]+$/) || part.match(/^[a-z]+$/i))) {
+                        podSummaryBuffer[podSummaryBuffer.length - 1] += ' ' + part;
+                    } else {
+                        podSummaryBuffer.push(part);
+                    }
+                }
             }
         }
     }

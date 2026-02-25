@@ -525,7 +525,8 @@ resource "null_resource" "display_pods" {
     private_key = tls_private_key.bastion_key.private_key_pem
   }
   provisioner "remote-exec" {
-    inline = ["k get po -n pindb"]
+    inline = ["sleep 5m",
+    "kubectl get pods -n pindb"]
   }
 
 }
