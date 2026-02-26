@@ -526,7 +526,7 @@ resource "null_resource" "display_pods" {
   }
   provisioner "remote-exec" {
     inline = ["sleep 5m",
-    "kubectl get pods -n pindb"]
+    "kubectl get pods -n pindb -o json"]
   }
 
 }

@@ -120,16 +120,23 @@ socket.on('clear-logs', () => {
 socket.on('pod-summary', (summary) => {
     podSummaryContainer.style.display = 'block';
 
-    // Split the summary lines
-    const lines = summary.trim().split('\n');
-    let isTable = false;
-
-    // Check if the first line looks like pod headers
-    if (lines.length > 0 && lines[0].includes('NAME') && lines[0].includes('STATUS')) {
-        isTable = true;
+    let data;
+    try {
+        data = JSON.parse(summary);
+    } catch (e) {
+        // Fallback if it's not JSON
+        const pre = document.createElement('pre');
+        pre.style.margin = '0';
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.fontFamily = "'Courier New', Courier, monospace";
+        pre.style.fontSize = "0.9rem";
+        pre.textContent = summary;
+        podSummaryContent.innerHTML = '';
+        podSummaryContent.appendChild(pre);
+        return;
     }
 
-    if (isTable) {
+    if (Array.isArray(data)) {
         let tableHTML = `<table class="subnet-table" style="width: 100%;">
             <thead>
                 <tr>
@@ -142,57 +149,32 @@ socket.on('pod-summary', (summary) => {
             </thead>
             <tbody>`;
 
-        for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-
-            // Regex to parse columns. RESTARTS might have spaces e.g. "3 (4h ago)"
-            // Columns: NAME (1), READY (2), STATUS (3), RESTARTS (4), AGE (5)
-            const match = line.match(/^(\S+)\s+(\S+)\s+(\S+)\s+(.+?)\s+(\S+)$/);
-
-            if (match) {
-                const name = match[1];
-                const ready = match[2];
-                const status = match[3];
-                const restarts = match[4];
-                const age = match[5];
-
-                let statusColor = 'var(--text-dark)';
-                if (status === 'Running' || status === 'Completed') {
-                    statusColor = 'var(--dark-green)';
-                } else if (status.startsWith('Init')) {
-                    statusColor = '#f39c12'; // Orange/Yellow
-                } else if (status === 'Error' || status === 'CrashLoopBackOff') {
-                    statusColor = 'var(--danger-red)';
-                }
-
-                tableHTML += `
-                <tr>
-                    <td><strong>${name}</strong></td>
-                    <td>${ready}</td>
-                    <td style="color: ${statusColor}; font-weight: 600;">${status}</td>
-                    <td>${restarts}</td>
-                    <td>${age}</td>
-                </tr>`;
-            } else {
-                // Fallback for lines that don't match the regex perfectly
-                tableHTML += `<tr><td colspan="5" style="font-family: monospace;">${line}</td></tr>`;
+        data.forEach(pod => {
+            let statusColor = 'var(--text-dark)';
+            if (pod.status === 'Running' || pod.status === 'Succeeded') {
+                statusColor = 'var(--dark-green)';
+            } else if (pod.status === 'Pending') {
+                statusColor = '#f39c12';
+            } else if (pod.status === 'Failed' || pod.status === 'Unknown') {
+                statusColor = 'var(--danger-red)';
             }
-        }
+
+            // Format date to local time or relative time
+            const ageDate = new Date(pod.age);
+            const ageString = ageDate.toLocaleTimeString();
+
+            tableHTML += `
+            <tr>
+                <td><strong>${pod.name}</strong></td>
+                <td>${pod.ready}</td>
+                <td style="color: ${statusColor}; font-weight: 600;">${pod.status}</td>
+                <td>${pod.restarts}</td>
+                <td title="${pod.age}">${ageString}</td>
+            </tr>`;
+        });
 
         tableHTML += `</tbody></table>`;
         podSummaryContent.innerHTML = tableHTML;
-    } else {
-        // Fallback to pre-wrap if it doesn't look like a table
-        const pre = document.createElement('pre');
-        pre.style.margin = '0';
-        pre.style.whiteSpace = 'pre-wrap';
-        pre.style.fontFamily = "'Courier New', Courier, monospace";
-        pre.style.fontSize = "0.9rem";
-        pre.textContent = summary;
-
-        podSummaryContent.innerHTML = '';
-        podSummaryContent.appendChild(pre);
     }
 });
 

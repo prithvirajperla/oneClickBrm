@@ -23,34 +23,49 @@ const emitLog = (message) => {
     logHistory.push(message);
     io.emit('log', message);
 
-    // We must process line by line, because message could be a chunk w/ multiple lines
     const messageLines = message.split('\n');
     for (const msg of messageLines) {
         if (!msg.trim()) continue;
 
-        // Check if we are starting to receive pod info
-        if (msg.includes('module.compute.null_resource.display_pods (remote-exec): NAME')) {
+        // Start collecting when we see the beginning of the JSON object
+        if (msg.includes('module.compute.null_resource.display_pods (remote-exec): {')) {
             isCollectingPods = true;
-            podSummaryBuffer = [];
+            podSummaryBuffer = ['{'];
+            continue;
         }
 
-        // Collect pod info
         if (isCollectingPods) {
             // Stop collecting when the resource creation completes
             if (msg.includes('module.compute.null_resource.display_pods: Creation complete')) {
                 isCollectingPods = false;
-                // Emit the collected pod summary back to the frontend
-                io.emit('pod-summary', podSummaryBuffer.join('\n'));
+                try {
+                    const fullJson = podSummaryBuffer.join('');
+                    const podData = JSON.parse(fullJson);
+
+                    // Transform K8s JSON to a simple format for the frontend
+                    const summary = podData.items.map(pod => {
+                        const name = pod.metadata.name;
+                        const ready = pod.status.containerStatuses ?
+                            `${pod.status.containerStatuses.filter(s => s.ready).length}/${pod.status.containerStatuses.length}` : '0/0';
+                        const status = pod.status.phase;
+                        const restarts = pod.status.containerStatuses ?
+                            pod.status.containerStatuses.reduce((acc, s) => acc + s.restartCount, 0) : 0;
+                        const age = pod.metadata.creationTimestamp; // Simplified age for now
+
+                        return { name, ready, status, restarts, age };
+                    });
+
+                    io.emit('pod-summary', JSON.stringify(summary));
+                } catch (e) {
+                    console.error('Failed to parse pod JSON:', e);
+                    // Fallback or emit error? 
+                    // Just emit the raw buffer if parsing fails for some reason
+                    io.emit('pod-summary', 'Error: Failed to parse pod status JSON');
+                }
             } else {
-                // Add lines that belong to the remote-exec output
                 const match = msg.match(/module\.compute\.null_resource\.display_pods \(remote-exec\):\s*(.*)/);
                 if (match && match[1]) {
-                    const part = match[1].trim();
-                    if (podSummaryBuffer.length > 0 && !part.match(/^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$/i) && !part.includes('NAME') && (part.match(/^[0-9]/) || part.match(/^Init:/) || part.match(/^[A-Z][a-z]+$/) || part.match(/^[a-z]+$/i))) {
-                        podSummaryBuffer[podSummaryBuffer.length - 1] += ' ' + part;
-                    } else {
-                        podSummaryBuffer.push(part);
-                    }
+                    podSummaryBuffer.push(match[1]);
                 }
             }
         }
